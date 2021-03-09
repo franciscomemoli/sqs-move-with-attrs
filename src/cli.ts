@@ -48,7 +48,6 @@ const resolveSqsUrl = async (sqsUrlOrName: string): Promise<ResolveSqsUrlResult>
         let jobConcurrency = 50;
         let maxMessagesReceived = -1;
         let errorMessage: string | undefined;
-        console.log('process.argv.length', process.argv.length);
         if (process.argv.length != 4 && process.argv.length != 5 && process.argv.length != 6 ) {
             errorMessage = "Unexpected number of arguments.";
         } else {
