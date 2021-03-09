@@ -45,8 +45,11 @@ const resolveSqsUrl = async (sqsUrlOrName: string): Promise<ResolveSqsUrlResult>
     try {
         let fromSqsUrl: string | undefined;
         let toSqsUrl: string | undefined;
+        let jobConcurrency = 50;
+        let maxMessagesReceived = -1;
         let errorMessage: string | undefined;
-        if (process.argv.length != 4) {
+        console.log('process.argv.length', process.argv.length);
+        if (process.argv.length != 4 && process.argv.length != 5 && process.argv.length != 6 ) {
             errorMessage = "Unexpected number of arguments.";
         } else {
             let resolveSqsUrlResult = await resolveSqsUrl(process.argv[2]);
@@ -59,6 +62,12 @@ const resolveSqsUrl = async (sqsUrlOrName: string): Promise<ResolveSqsUrlResult>
                     errorMessage = resolveSqsUrlResult.errorMessage
                 } else {
                     toSqsUrl = resolveSqsUrlResult.sqsUrl
+                    if(process.argv[4]){
+                        jobConcurrency = parseInt(process.argv[4]);
+                        if(process.argv[5]){
+                            maxMessagesReceived = parseInt(process.argv[5]);
+                        }
+                    }
                 }
             }
         }
@@ -82,9 +91,9 @@ const resolveSqsUrl = async (sqsUrlOrName: string): Promise<ResolveSqsUrlResult>
         console.log("destination: %s", toSqsUrl);
 
         const sqsClient = new SQS();
-        const sqsMove = new SqsMoveWithAttrs(sqsClient, fromSqsUrl, toSqsUrl);
+        const sqsMove = new SqsMoveWithAttrs(sqsClient, fromSqsUrl, toSqsUrl, maxMessagesReceived);
         const startTime = new Date().getTime();
-        const movedMessagesCount = await sqsMove.move();
+        const movedMessagesCount = await sqsMove.move(jobConcurrency);
         const endTime = new Date().getTime();
         console.log("\r%d messages have been moved within %d sec.", movedMessagesCount, Math.round((endTime-startTime)/1000))
 

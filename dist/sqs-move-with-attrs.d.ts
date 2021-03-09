@@ -3,14 +3,16 @@ export declare class SqsMoveWithAttrs {
     private readonly sqsClient;
     private readonly fromSqsUrl;
     private readonly toSqsUrl;
+    private maxMessagesReceived;
     private receivedMessagesCount;
     private movedMessagesCount;
     private receiveOptions;
-    constructor(sqsClient: SQS, fromSqsUrl: string, toSqsUrl: string);
+    constructor(sqsClient: SQS, fromSqsUrl: string, toSqsUrl: string, maxMessagesReceived?: number);
     private reportProgress;
     private castMessageAttributes;
     private createSendMessageBatchRequest;
     private getSendEntrySizeInBytes;
+    handleMessageBody: (body: string) => Promise<string>;
     /**
      * @return promise resolved with number of moved messages
      */

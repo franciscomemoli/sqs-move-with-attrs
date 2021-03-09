@@ -53,7 +53,7 @@
         "esLint": "eslint src/**/*.ts",
         "esLintFix": "eslint --fix src/**/*.ts",
         "prepare": "yarn run compile",
-        "compile": "yarn run esLint && tsc",
+        "compile": "npm run esLint && tsc",
         "test": "mocha -r ts-node/register test/*.test.ts",
         "testAndCoverage": "nyc --reporter lcov --extension .ts --exclude \"*.test.ts\" yarn run test",
         "testAndCoveralls": "nyc --extension .ts --exclude \"*.test.ts\" yarn test && nyc report --reporter=text-lcov | coveralls",

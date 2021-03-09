@@ -10,22 +10,23 @@ export class SqsMoveWithAttrs {
     private readonly sqsClient: SQS;
     private readonly fromSqsUrl: string;
     private readonly toSqsUrl: string;
+    private maxMessagesReceived: number;
 
     private receivedMessagesCount: number;
     private movedMessagesCount: number;
     private receiveOptions: SQS.ReceiveMessageRequest;
 
-    constructor(sqsClient: SQS, fromSqsUrl: string, toSqsUrl: string) {
+    constructor(sqsClient: SQS, fromSqsUrl: string, toSqsUrl: string, maxMessagesReceived = -1) {
         this.sqsClient = sqsClient;
         this.fromSqsUrl = fromSqsUrl;
         this.toSqsUrl = toSqsUrl;
-
+        this.maxMessagesReceived = maxMessagesReceived;
         this.receiveOptions = {
             MessageAttributeNames: [
                 "All"
             ],
-            QueueUrl: fromSqsUrl,
             MaxNumberOfMessages: 10,
+            QueueUrl: fromSqsUrl,
             VisibilityTimeout: 30,
             WaitTimeSeconds: 0
         };
@@ -62,6 +63,9 @@ export class SqsMoveWithAttrs {
         return Buffer.byteLength(str, "utf-8")
     };
 
+    public handleMessageBody = async(body: string): Promise<string> => {
+        return body;
+    }
     /**
      * @return promise resolved with number of moved messages
      */
@@ -75,10 +79,16 @@ export class SqsMoveWithAttrs {
         let movedMessagesCount = 0;
 
         do {
-
+            if (this.maxMessagesReceived !== -1) {
+                const maxNumberOfMessages = Math.min(this.maxMessagesReceived - movedMessagesCount, 1);
+                if (!maxNumberOfMessages) {
+                    return movedMessagesCount;
+                }
+                this.receiveOptions.MaxNumberOfMessages = maxNumberOfMessages;
+            }
             const receiveBatchResponse: SQS.ReceiveMessageResult = await this.sqsClient.receiveMessage(this.receiveOptions).promise();
             if (!receiveBatchResponse.Messages) {
-                return movedMessagesCount
+                return movedMessagesCount;
             }
 
             let id = 0;
@@ -91,7 +101,7 @@ export class SqsMoveWithAttrs {
                     id++;
                     const sendEntry: SQS.SendMessageBatchRequestEntry = {
                         Id: ''+id,
-                        MessageBody: message.Body
+                        MessageBody: await this.handleMessageBody(message.Body)
                     };
                     if (message.MessageAttributes) {
                         sendEntry.MessageAttributes = this.castMessageAttributes(message.MessageAttributes)
@@ -127,11 +137,10 @@ export class SqsMoveWithAttrs {
                     deleteRequest.Entries.splice(deleteEntryIndex,1)
                 }
             });
-
             await this.sqsClient.deleteMessageBatch(deleteRequest).promise();
-
-            movedMessagesCount += deleteRequest.Entries.length;
-            this.reportProgress(receiveBatchResponse.Messages.length, movedMessagesCount);
+            const deletedMessages = deleteRequest.Entries.length;
+            movedMessagesCount += deletedMessages;
+            this.reportProgress(receiveBatchResponse.Messages.length, deletedMessages);
 
             // eslint-disable-next-line no-constant-condition
         } while (true);
